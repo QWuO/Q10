@@ -54,10 +54,10 @@ DOM2
 
 GlcF
  -formula Glucose -1.0 Acetate 2.7 Hdg 1.2 HCO3 0.6
- -parms   0.2e-7 1.0e-3 3 1
+ -parms   0.2e-7 1.0e-3 2 1
 DocF
  -formula Doc -1.0 Acetate 2.7 Hdg 1.2 HCO3 0.6
- -parms   5.0e-9 1.0e-3 0.125 0.5
+ -parms   5.0e-9 1.0e-3 2 1
 BioDocF
  -m0      0.2
  -formula H 0.0
