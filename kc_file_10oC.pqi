@@ -1,0 +1,171 @@
+DATABASE C:\Program Files (x86)\USGS\Phreeqc Interactive 3.5.0-14000\database\phreeqc.dat
+
+SOLUTION 1 Growth medium in serum vials
+   water    1.0        # kg
+   temp    10.0
+   pH       5.9
+   units    mol/l
+   Na       0.002
+   Cl       0.002      charge
+#   C(4)     1.0e-6      
+   Ca       0.001
+   K        0.0005
+   Mg       0.0005
+   Acetate  0.1e-6
+#   Glucose  0.3e-3
+   Glucose  1.0e-12
+   Doc      1e-4
+
+EQUILIBRIUM_PHASES 1 Degassing growth medium
+# equlibrate liquid medium with initial gas phase
+#  Gas         log(fugacity)
+   CO2(g)      -9
+   Ntg(g)       0
+   Mtg(g)       -9
+   Hdg(g)       -9
+
+SAVE SOLUTION 1
+END
+
+USE SOLUTION 1
+
+EQUILIBRIUM_PHASES 2 pH buffer
+   FixpH	-5.9	NaOH	10.0
+
+GAS_PHASE 1 Headspace in serum vials
+   -fixed_volume
+   -volume   5.0       # liter
+   -temp    10.0       # degree Celsius
+   -equilibrium with SOLUTION 1
+   Mtg(g)   1.0e-9     # partial pressure in atm
+   Hdg(g)   1.0e-9
+   Ntg(g)   1
+   CO2(g)   1.0e-9          
+
+KINETICS
+# Production of C6H12O6
+# PARMS(1) rate constant mol/kg-H2O/s
+# PARMS(2) max concentrations of C6H12O6
+DOM2
+ -formula Doc 1.0
+ -m0    1.0
+ -parms 0.01 0.27e-3
+# -parms 1.0e-8 0.32e-3
+
+GlcF
+ -formula Glucose -1.0 Acetate 2.7 Hdg 1.2 HCO3 0.6
+ -parms   0.2e-7 1.0e-3 0.125 0.5
+DocF
+ -formula Doc -1.0 Acetate 2.7 Hdg 1.2 HCO3 0.6
+ -parms   5.0e-9 1.0e-3 0.125 0.5
+BioDocF
+ -m0      0.2
+ -formula H 0.0
+ -parms   10000.0 0.5 
+
+# Rxn: CH3COO-  + H2O  = CH4(aq)  + HCO3-
+# Log K at 25 °C =    2.6407
+AcCH4
+ -formula Acetate -1.0 HCO3 1 Mtg 1.0
+ -parms   2.96e-9 1.0e-5 0.2 2
+BioAcCH4
+ -m0      1.9
+ -formula H 0.0
+ -parms   1000 20.0 
+
+# Rxn: H2(aq)  + 0.25*H+  + 0.25*HCO3-  = 0.75*H2O  + 0.25*CH4(aq)
+# Log K at 25 °C =    10.0859
+H2CH4
+ -formula Hdg -1.0 HCO3 -0.25 Mtg 0.25
+ -parms   0.74e-9 1.0e-7 0.0625 0.5
+ -tol 1e-9
+BioH2CH4
+ -m0      7.0 
+ -formula H 0.0
+ -parms   312.5 20.0 
+
+# -cvode
+-steps 3.89e6 in 100 steps
+-runge_kutta 6
+# rate constant is 140 nmol/min/mg-protein, or 4.24e-6 mol-H2/s/g-dw
+# 1.06e-9 mol-CH4/s/mg, 1.20e-4 mol-CH4/mol-Bio/s
+# PARM(1) = k,  rate constant in mol/mg-dw/s
+# PARM(2) = KD, half-saturation constant, molal
+# PARM(3) = log_K, log10 of eqilibrium constant K
+# PARM(4) = mATP, ATP yield, #/rxn
+# PARM(5) = chi, average stoichiometric number, #/rxn
+# do not add -m0 option
+# In Biomass option:
+# m0, biomass concentration at time 0 in mg-dw/kg-H2O
+# PARM(1) = Y, growth yield in mg-dw/mol-rxn
+# PARM(2) = D, specifici maitenance rate in 1/s
+INCREMENTAL_REACTIONS true
+
+# DATABLOCK for writing results to file
+SELECTED_OUTPUT
+ -file KickPool_10Control_OutPut.txt
+ -reset false
+ USER_PUNCH
+ -headings Days C6H12O6 Acetate CH4 CO2 H2Pa CH4Pa CO2Pa X_F X_AcMet X_H2Met Ft_glc Ft_acm Ft_hm Fm_glc Fm_acm Fm_hm r_SOC r_DOC r_Glc r_AcMet r_H2Met GA_DOC GA_AcMet GA_H2Met 
+ 10 PUNCH SIM_TIME/3600/24, (TOT("Doc") + TOT("Glucose"))*1e3, TOT("Acetate")*1e6, TOT("Mtg"), TOT("C"), 10^SI("Hdg(g)")*1.013e5,\
+          10^SI("Mtg(g)")*1.013e5, 10^SI("CO2(g)")*1.013e5,\
+          KIN("BioDocF"), KIN("BioAcCH4"), KIN("BioH2CH4"),\ 
+          GET(4003), GET(2003), GET(3003),GET(4001),GET(2001), GET(3001),\
+            GET(5009)*1e10, GET(4009)*1e10, GET(1009)*1e10, GET(2009)*1e10, GET(3009)*1e10, GET(1004), GET(2004), GET(3004)
+ -end
+
+USER_GRAPH 1
+-headings _time_ FT_Ac FT_H2
+-axis_titles "Time (days)" "FD & FT" 
+-start
+10 GRAPH_X TOTAL_TIME / 3600 / 24
+20 GRAPH_Y GET(2003) GET(3003)
+-end
+
+USER_GRAPH 2
+-headings _time_ Ac_vs_H2
+-axis_titles "Time (days)" "Ac_vs_H2" 
+-start
+10 GRAPH_X TOTAL_TIME / 3600 / 24
+20 GRAPH_Y GET(2009)/(GET(3009)*0.25)
+-end
+
+END
+
+# DATABLOCK for graphing
+USER_GRAPH 1
+-headings _time_ Carbohydrate DOC Glucose Acetate 
+-axis_titles "Time (days)" "Concentration (mol/l)" 
+-start
+10 GRAPH_X TOTAL_TIME / 3600 / 24
+20 GRAPH_Y TOT("Doc") + TOT("Glucose"), TOT("Doc"), TOT("Glucose")
+30 GRAPH_SY TOT("Acetate")
+-end
+
+USER_GRAPH 2
+-headings _time_ H2 
+-axis_titles "Time (days)" "Partial pressures"
+-start
+10 GRAPH_X TOTAL_TIME / 3600 / 24
+# SI("Hdg(g)") log(Partial pressure of H2)
+20 GRAPH_Y 10^SI("Hdg(g)")
+-end
+
+USER_GRAPH 3
+-headings _time_ CH4 CO2 
+-axis_titles "Time (days)" "Partial pressures"
+-start
+10 GRAPH_X TOTAL_TIME / 3600 / 24
+20 GRAPH_Y 10^SI("Mtg(g)")
+30 GRAPH_SY 10^SI("CO2(g)")
+-end
+
+USER_GRAPH 4
+-headings _time_ X_Doc X_AcCH4 X_H2CH4  
+-axis_titles "Time (days)" "Biomass mg/l" 
+-start
+10 GRAPH_X TOTAL_TIME / 3600 / 24
+20 GRAPH_Y KIN("BioDocF"), KIN("BioAcCH4"), KIN("BioH2CH4")  
+-end
+
+END
